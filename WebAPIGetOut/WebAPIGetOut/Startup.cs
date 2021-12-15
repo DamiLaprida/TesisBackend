@@ -1,3 +1,5 @@
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -12,7 +14,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using WebAPIGetOut.Common;
 using WebAPIGetOut.Data;
+using WebAPIGetOut.Domain;
+using WebAPIGetOut.Persistence.Interfaces;
+using WebAPIGetOut.Persistence.Repositories;
+using WebAPIGetOut.Security;
 
 namespace WebAPIGetOut
 {
@@ -21,6 +28,7 @@ namespace WebAPIGetOut
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+            
         }
 
         public IConfiguration Configuration { get; }
@@ -28,6 +36,33 @@ namespace WebAPIGetOut
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddMvc(setup =>
+            {
+                
+            }).AddFluentValidation();
+
+            #region Validators
+            services.AddTransient<IValidator<Empleado>, EmpleadoValidador>();
+            services.AddTransient<IValidator<Producto>, ProductoValidador>();
+            services.AddTransient<IValidator<Recibo>, ReciboValidador>();
+            services.AddTransient<IValidator<Reserva>, ReservaValidador>();
+            services.AddTransient<IValidator<Usuario>, UsuarioValidador>();
+            #endregion
+            
+            #region Repositories
+            services.AddTransient(typeof(IRepository<>), typeof(GenericRepository<>));
+            services.AddTransient<IProductoRepository, ProductoRepository>();
+            services.AddTransient<IUnitOfWork, UnitOfWork>();
+            #endregion
+
+            //services.AddCors(options =>
+            //{
+            //    var frontentendURL = 
+            //});
+
+            //AutoMapper
+            services.AddAutoMapper(typeof(MappingProfiles).Assembly);
+            
             services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(Configuration.GetConnectionString("defaultConnection")));
             services.AddControllers();
             services.AddSwaggerGen(c =>
@@ -39,6 +74,9 @@ namespace WebAPIGetOut
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            var applicationServices = app.ApplicationServices;
+            var configuration = applicationServices.GetRequiredService<IConfiguration>();
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
